@@ -1,0 +1,55 @@
+"""What to buy for one serving of each starter dish (raw/dry amounts, approximate). Used only for the grocery list.
+(item, amount, unit, aisle). Dishes not listed here (your own foods) go on the list as the dish itself."""
+V, F, G, P, D, M, N, O = ("Vegetables", "Fruit", "Grains and flour", "Pulses and soy", "Dairy and eggs", "Meat and fish",
+                          "Nuts and spreads", "Other")
+
+DISH_SHOPPING = {
+    "Roti": [("Wheat flour (atta)", 35, "g", G)],
+    "Plain paratha": [("Wheat flour (atta)", 45, "g", G), ("Cooking oil or ghee", 6, "g", "Pantry")],
+    "Aloo paratha": [("Wheat flour (atta)", 45, "g", G), ("Potato", 60, "g", V), ("Cooking oil or ghee", 8, "g", "Pantry")],
+    "Steamed rice": [("Rice", 55, "g", G)],
+    "Dal": [("Toor dal", 35, "g", P), ("Onion", 20, "g", V), ("Tomato", 25, "g", V)],
+    "Rajma curry": [("Rajma", 35, "g", P), ("Onion", 30, "g", V), ("Tomato", 30, "g", V)],
+    "Chole": [("Chickpeas (kabuli chana)", 40, "g", P), ("Onion", 30, "g", V), ("Tomato", 30, "g", V)],
+    "Boiled chickpeas": [("Chickpeas (kabuli chana)", 35, "g", P)],
+    "Moong sprouts": [("Whole moong", 40, "g", P)],
+    "Paneer": [("Paneer", 100, "g", D)],
+    "Paneer bhurji": [("Paneer", 70, "g", D), ("Onion", 30, "g", V), ("Tomato", 30, "g", V)],
+    "Curd": [("Curd", 100, "g", D)],
+    "Chaas": [("Curd", 50, "g", D)],
+    "Milk": [("Milk", 250, "ml", D)],
+    "Boiled egg": [("Eggs", 1, "pcs", D)],
+    "Omelette": [("Eggs", 2, "pcs", D), ("Onion", 15, "g", V)],
+    "Chicken breast": [("Chicken breast", 130, "g", M)],
+    "Chicken curry": [("Chicken", 120, "g", M), ("Onion", 40, "g", V), ("Tomato", 30, "g", V)],
+    "Fish curry": [("Fish", 130, "g", M), ("Onion", 30, "g", V), ("Tomato", 30, "g", V)],
+    "Soya chunks": [("Soya chunks", 30, "g", P)],
+    "Whey protein": [("Whey protein", 30, "g", N)],
+    "Oats": [("Oats", 40, "g", G)],
+    "Poha": [("Poha (flattened rice)", 60, "g", G), ("Onion", 20, "g", V), ("Peanuts", 10, "g", N)],
+    "Upma": [("Rava (semolina)", 60, "g", G), ("Onion", 20, "g", V), ("Mixed vegetables", 40, "g", V)],
+    "Idli": [("Idli batter", 70, "g", G)],
+    "Plain dosa": [("Dosa batter", 80, "g", G)],
+    "Sambar": [("Toor dal", 25, "g", P), ("Mixed vegetables", 60, "g", V)],
+    "Mixed veg sabzi": [("Mixed vegetables", 120, "g", V)],
+    "Bhindi": [("Bhindi (okra)", 110, "g", V)],
+    "Brown bread": [("Brown bread", 1, "slices", G)],
+    "Peanuts": [("Peanuts", 30, "g", N)],
+    "Almonds": [("Almonds", 12, "g", N)],
+    "Peanut butter": [("Peanut butter", 16, "g", N)],
+    "Banana": [("Banana", 1, "pcs", F)],
+    "Apple": [("Apple", 1, "pcs", F)],
+}
+
+# For recipe ingredients (matched by words in the ingredient name), first hit wins.
+AISLE_WORDS = [
+    (V, ("onion", "tomato", "potato", "spinach", "palak", "okra", "bhindi", "cauliflower", "gobi", "carrot", "peas", "capsicum",
+         "cabbage", "brinjal", "baingan", "cucumber", "garlic", "ginger", "chilli", "beans", "vegetable", "sabzi", "lauki", "methi")),
+    (F, ("banana", "apple", "orange", "mango", "papaya", "fruit", "lemon", "guava")),
+    (P, ("dal", "rajma", "chana", "chickpea", "moong", "masoor", "lentil", "soya", "soy ", "urad", "lobia")),
+    (D, ("paneer", "curd", "milk", "egg", "butter", "cheese", "yogurt", "dahi", "ghee")),
+    (M, ("chicken", "fish", "mutton", "prawn", "lamb")),
+    (G, ("rice", "flour", "atta", "oats", "poha", "rava", "semolina", "bread", "roti", "pasta", "maida", "besan")),
+    (N, ("peanut", "almond", "cashew", "walnut", "nuts", "seeds")),
+    ("Pantry", ("oil", "salt", "sugar", "masala", "spice", "jaggery", "powder")),
+]

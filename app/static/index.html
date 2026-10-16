@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>FitChat</title>
+  <meta name="theme-color" content="#EDF0F1" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#101A20" media="(prefers-color-scheme: dark)">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <link rel="manifest" href="/static/manifest.webmanifest">
+  <link rel="icon" href="/static/icon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/app.css?v=5">
+</head>
+<body>
+  <div class="app">
+    <header class="top">
+      <div class="top-row">
+        <h1>FitChat</h1>
+        <p class="top-note" id="trainNote" hidden></p>
+      </div>
+      <div class="macros" id="macros" aria-label="Today's targets">
+        <section class="macro cal" aria-labelledby="calLabel">
+          <p class="macro-num"><span class="big" id="calBig">&ndash;</span><span class="unit" id="calUnit">kcal left</span></p>
+          <div class="bar" role="img" id="calBar" aria-label="Calories"><i></i></div>
+          <p class="macro-sub" id="calSub">&nbsp;</p>
+          <span id="calLabel" hidden>Calories</span>
+        </section>
+        <section class="macro pro" aria-labelledby="proLabel">
+          <p class="macro-num"><span class="big" id="proBig">&ndash;</span><span class="unit" id="proUnit">g protein left</span></p>
+          <div class="bar" role="img" id="proBar" aria-label="Protein"><i></i></div>
+          <p class="macro-sub" id="proSub">&nbsp;</p>
+          <span id="proLabel" hidden>Protein</span>
+        </section>
+      </div>
+      <button type="button" class="gutline" id="gutLine">Water and fibre</button>
+    </header>
+
+    <main class="scroller view" id="homeView" hidden aria-label="Home"></main>
+
+    <main class="page view" id="pageView" hidden>
+      <div class="pagehead"><h2 id="pageTitle"></h2></div>
+      <div class="sheet-body page-body" id="pageBody"></div>
+    </main>
+
+    <main class="scroller" id="scroller">
+      <div class="chat" id="chat" role="log" aria-live="polite" aria-label="Conversation"></div>
+      <section class="empty" id="empty" hidden>
+        <h2>What did you eat, or what are you training?</h2>
+        <p>Tell me in your own words. I'll track the numbers and plan around what you've got left.</p>
+        <div class="examples">
+          <button type="button" class="example">I had 2 rotis, dal and a bowl of curd</button>
+          <button type="button" class="example">Chest workout today, barbells are all taken</button>
+          <button type="button" class="example">Show me some hamstring stretches</button>
+        </div>
+      </section>
+    </main>
+
+    <footer class="dock">
+      <form class="composer" id="composer" autocomplete="off">
+        <label for="input" class="sr">Message</label>
+        <textarea id="input" rows="1" maxlength="2000" placeholder="Message your coach" enterkeyhint="send"></textarea>
+        <button type="submit" class="send" id="send" aria-label="Send message">
+          <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M3.4 20.4 21 12 3.4 3.6l.1 6.5L15 12 3.5 13.9z" fill="currentColor"/></svg>
+        </button>
+      </form>
+    </footer>
+
+    <div class="restbar" hidden role="timer" aria-label="Rest timer">
+      <div class="restfill"></div>
+      <span class="resttxt">Rest <b class="resttime">0:00</b></span>
+      <button type="button" class="btn small restminus" aria-label="15 seconds less">&minus;15</button>
+      <button type="button" class="btn small restplus" aria-label="15 seconds more">+15</button>
+      <button type="button" class="btn small restskip">Skip</button>
+    </div>
+
+    <nav class="tabbar" id="tabbar" aria-label="Main">
+      <button type="button" class="tab" data-tab="home" aria-current="page">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11.5 12 4l9 7.5M5.5 10v10h13V10"/></svg><span>Home</span><i class="tabdot" id="homeDot" hidden></i>
+      </button>
+      <button type="button" class="tab" data-tab="food">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3v8M4.5 3v5a2.5 2.5 0 0 0 5 0V3M7 11v10M17 21V3c-2.5 1.5-3.5 4-3.5 8h3.5"/></svg><span>Food</span>
+      </button>
+      <button type="button" class="tab" data-tab="gym">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 9.5v5M6 7v10M18 7v10M21 9.5v5M6 12h12"/></svg><span>Gym</span><b class="badge" id="badgeWorkout" hidden></b>
+      </button>
+      <button type="button" class="tab" data-tab="coach">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"/></svg><span>Coach</span>
+      </button>
+      <button type="button" class="tab" data-tab="progress">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg><span>Progress</span>
+      </button>
+    </nav>
+  </div>
+
+  <dialog class="sheet" id="sheet" aria-labelledby="sheetTitle">
+    <div class="sheet-head">
+      <h2 id="sheetTitle"></h2>
+      <button type="button" class="close" id="sheetClose" aria-label="Close">Done</button>
+    </div>
+    <div class="sheet-body" id="sheetBody"></div>
+    <div class="restbar" hidden role="timer" aria-label="Rest timer">
+      <div class="restfill"></div>
+      <span class="resttxt">Rest <b class="resttime">0:00</b></span>
+      <button type="button" class="btn small restminus" aria-label="15 seconds less">&minus;15</button>
+      <button type="button" class="btn small restplus" aria-label="15 seconds more">+15</button>
+      <button type="button" class="btn small restskip">Skip</button>
+    </div>
+  </dialog>
+
+  <dialog class="lightbox" id="lightbox" aria-label="Exercise picture">
+    <button type="button" class="lb-close" id="lbClose" aria-label="Close picture">Close</button>
+    <img id="lbImg" alt="">
+  </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="/static/app.js?v=5" defer></script>
+  <script src="/static/ui2.js?v=5" defer></script>
+  <script src="/static/body.js?v=5" defer></script>
+  <script src="/static/weekplan.js?v=5" defer></script>
+</body>
+</html>
