@@ -2,10 +2,9 @@ import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
-from fastapi.staticfiles import StaticFiles
 
 from .api import account, arc, body, daystats, mealprep, chat, data, day, myfoods, plan, recipes, routines, week, workouts
 from .config import get_settings
@@ -47,7 +46,16 @@ app.include_router(mealprep.router)
 
 # The phone UI is plain HTML/CSS/JS in app/static, served by this same server (no build step needed).
 STATIC_DIR = Path(__file__).resolve().parent / "static"
-app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+
+
+@app.get("/static/{name:path}", include_in_schema=False)
+def static_file(name: str):
+    # A plain route instead of a mounted StaticFiles app: behaves the same locally and on Vercel.
+    root = STATIC_DIR.resolve()
+    target = (root / name).resolve()
+    if root not in target.parents or not target.is_file():
+        raise HTTPException(status_code=404, detail="Not Found")
+    return FileResponse(target)
 
 
 @app.get("/sw.js", include_in_schema=False)
