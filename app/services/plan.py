@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from ..models import Food
 from . import digestion as dig
 from . import nutrition as nut
+from .. import clock
 
 SLOTS = {  # slot -> (label, share of the rest of the day, last hour it is still worth planning)
     "breakfast": ("Breakfast", 0.25, 11), "lunch": ("Lunch", 0.33, 16), "snack": ("Snack", 0.12, 19),
@@ -118,8 +119,8 @@ def _best(pool: list[Food], slot: str, t: dict, goal: str, logged: set[str], use
 
 def plan_rest_of_day(db: Session, hour: int | None = None, slots: list[str] | None = None,
                      exclude: list[str] | None = None, day: date | None = None) -> dict:
-    day = day or date.today()
-    hour = datetime.now().hour if hour is None else int(hour)
+    day = day or clock.today()
+    hour = clock.now().hour if hour is None else int(hour)
     rem = nut.remaining(db, day)
     gut = dig.status(db, day)
     cal_left, pro_left = rem["calories_remaining"], max(0.0, rem["protein_remaining_g"])

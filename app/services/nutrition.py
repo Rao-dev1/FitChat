@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from ..models import Food, Ingredient, MealLog, Profile, WorkoutSession, WorkoutSet
 from . import ingredients as ing_svc
 from .textmatch import match_named
+from .. import clock
 
 # Heuristic, tweak freely: extra calories allowed on a day where a workout was logged.
 TRAINING_DAY_CALORIE_BONUS = 150
@@ -82,7 +83,7 @@ def log_item(db: Session, name: str, quantity: float = 1, meal_type: str | None 
     if grams is not None and float(grams) <= 0:
         raise ValueError("grams must be positive")
     quantity = float(quantity)
-    day = day or date.today()
+    day = day or clock.today()
     label = name.strip()
     has_totals = bool(totals) and totals.get("calories") is not None and totals.get("protein_g") is not None
     has_estimate = bool(estimate) and estimate.get("calories") is not None and estimate.get("protein_g") is not None
@@ -181,14 +182,14 @@ def log_ingredient(db: Session, ingredient_id: int, grams: float, meal_type: str
     vals = ing_svc.scale(ing, grams)
     _check_plausible(vals)
     shown = f"{ing.name} ({grams:g} g)"
-    e = _entry(db, day or date.today(), meal_type, shown, 1.0, vals, False)
+    e = _entry(db, day or clock.today(), meal_type, shown, 1.0, vals, False)
     return {"logged": True, "id": e.id, "food": shown, "quantity": 1, "estimated": False, "source": "ingredient",
             "calories": e.calories, "protein_g": e.protein_g, "matched_as": ing.name,
             "summary": f"Logged {grams:g} g {ing.name} = {e.calories:g} kcal, {e.protein_g:g} g protein."}
 
 
 def daily_totals(db: Session, day: date | None = None) -> dict:
-    day = day or date.today()
+    day = day or clock.today()
     row = db.execute(
         select(func.coalesce(func.sum(MealLog.calories), 0), func.coalesce(func.sum(MealLog.protein_g), 0),
                func.coalesce(func.sum(MealLog.carbs_g), 0), func.coalesce(func.sum(MealLog.fat_g), 0),
@@ -206,13 +207,13 @@ def daily_totals(db: Session, day: date | None = None) -> dict:
 
 
 def trained_today(db: Session, day: date | None = None) -> bool:
-    day = day or date.today()
+    day = day or clock.today()
     n = db.scalar(select(func.count(WorkoutSet.id)).join(WorkoutSession).where(WorkoutSession.day == day))
     return (n or 0) >= MIN_SETS_FOR_BONUS
 
 
 def remaining(db: Session, day: date | None = None) -> dict:
-    day = day or date.today()
+    day = day or clock.today()
     p, t = get_profile(db), daily_totals(db, day)
     bonus = TRAINING_DAY_CALORIE_BONUS if trained_today(db, day) else 0
     cal_target = p.calorie_target + bonus

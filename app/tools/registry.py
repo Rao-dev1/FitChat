@@ -23,6 +23,7 @@ from ..services import recipes as rc_svc
 from ..services import routines as rt_svc
 from ..services import weekly as wkly
 from ..services import workouts as wk
+from .. import clock
 
 log = logging.getLogger(__name__)
 Handler = Callable[[Session, dict], dict]
@@ -45,7 +46,7 @@ _NUM, _STR, _INT = {"type": "number"}, {"type": "string"}, {"type": "integer"}
 def _log_food(db, a):
     results = []
     days_ago = max(0, min(int(a.get("days_ago") or 0), 60))
-    day = date.today() - timedelta(days=days_ago)
+    day = clock.today() - timedelta(days=days_ago)
     for it in a.get("items", []):
         totals = {k[len("total_"):]: it[k] for k in ("total_calories", "total_protein_g", "total_carbs_g",
                                                      "total_fat_g", "total_fibre_g") if it.get(k) is not None}
@@ -297,14 +298,14 @@ TOOLS: list[Tool] = [
     Tool(ToolSpec("log_measurements", "Save tape measurements in cm for today (or days_ago). Any of waist_cm, chest_cm, hips_cm, "
                   "arm_cm, thigh_cm. Quote the summary.", _obj({"waist_cm": _NUM, "chest_cm": _NUM, "hips_cm": _NUM, "arm_cm": _NUM,
                                                                "thigh_cm": _NUM, "days_ago": _INT})),
-         lambda db, a: body_svc.log_measures(db, date.today() - timedelta(days=int(a.get("days_ago") or 0)),
+         lambda db, a: body_svc.log_measures(db, clock.today() - timedelta(days=int(a.get("days_ago") or 0)),
                                             **{k: a.get(k) for k in body_svc.FIELDS})),
     Tool(ToolSpec("get_body_progress", "Measurements over time and what changed since the first entry. Photos are viewed in the "
                   "app, not here.", _obj({})),
          lambda db, a: {k: v for k, v in body_svc.overview(db).items() if k != "photos"}),
     Tool(ToolSpec("log_sleep_steps", "Record last night's sleep (sleep_h hours) and/or today's steps (steps). days_ago for earlier "
                   "days. Quote the summary.", _obj({"sleep_h": _NUM, "steps": _INT, "days_ago": _INT})),
-         lambda db, a: ds_svc.log_stats(db, date.today() - timedelta(days=int(a.get("days_ago") or 0)), a.get("sleep_h"), a.get("steps"))),
+         lambda db, a: ds_svc.log_stats(db, clock.today() - timedelta(days=int(a.get("days_ago") or 0)), a.get("sleep_h"), a.get("steps"))),
     Tool(ToolSpec("get_winter_arc", "Winter Arc (Oct 1 to Dec 31) progress: day count, streaks, this week's gym days, weight "
                   "change and an estimated end weight. Quote the summary.", _obj({})),
          lambda db, a: {k: v for k, v in arc_svc.status(db).items() if k != "dots"}),

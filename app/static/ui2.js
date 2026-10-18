@@ -242,6 +242,7 @@
       ['Sleep and steps', ds && (ds.avg_sleep_h != null || ds.avg_steps != null) ? [ds.avg_sleep_h != null ? `${ds.avg_sleep_h} h sleep` : '', ds.avg_steps != null ? `${fmtNum(ds.avg_steps)} steps` : ''].filter(Boolean).join(' · ') + ' (14-day average)' : 'Log once a day', () => FC.openSleep()],
       ['Water, fibre and stool', g ? `Water ${fmtNum(g.water_ml / 1000, 1)} of ${fmtNum(g.water_target_ml / 1000, 1)} L today` : 'Digestion tracker', () => { FC.gutUI.data = null; openSheet('Gut, water and fibre', FC.renderGut); }],
       ['Reminders', `${Object.keys(NUDGE_LABELS).length - muted().length} of ${Object.keys(NUDGE_LABELS).length} on`, () => openSheet('Reminders', renderReminders)],
+      ['Account', FC.accountSub ? FC.accountSub() : 'Your data', () => FC.openAccount && FC.openAccount()],
     ];
     const list = el('div', 'plist');
     rows.forEach(([t, sub, fn]) => {

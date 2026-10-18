@@ -4,7 +4,10 @@ from datetime import date, timedelta
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from ..tenancy import key_get
+
 from ..models import DayStat
+from .. import clock
 
 MAX_SLEEP_H, MAX_STEPS = 24.0, 100_000
 MAX_WINDOW = 120
@@ -15,8 +18,8 @@ class StatError(ValueError):
 
 
 def log_stats(db: Session, day: date | None = None, sleep_h: float | None = None, steps: int | None = None) -> dict:
-    day = day or date.today()
-    if day > date.today():
+    day = day or clock.today()
+    if day > clock.today():
         raise StatError("Can't log for a future date.")
     if sleep_h is None and steps is None:
         raise StatError("Give sleep hours, steps, or both.")
@@ -24,7 +27,7 @@ def log_stats(db: Session, day: date | None = None, sleep_h: float | None = None
         raise StatError(f"Sleep must be more than 0 and at most {MAX_SLEEP_H:g} hours.")
     if steps is not None and not (0 <= int(steps) <= MAX_STEPS):
         raise StatError(f"Steps must be between 0 and {MAX_STEPS:,}.")
-    row = db.get(DayStat, day) or DayStat(day=day)
+    row = key_get(db, DayStat, day=day) or DayStat(day=day)
     if sleep_h is not None:
         row.sleep_h = round(float(sleep_h), 2)
     if steps is not None:
@@ -36,7 +39,7 @@ def log_stats(db: Session, day: date | None = None, sleep_h: float | None = None
 
 
 def delete_stats(db: Session, day: date) -> bool:
-    row = db.get(DayStat, day)
+    row = key_get(db, DayStat, day=day)
     if not row:
         return False
     db.delete(row)
@@ -49,12 +52,12 @@ def stat_json(r: DayStat | None) -> dict | None:
 
 
 def get(db: Session, day: date) -> dict | None:
-    return stat_json(db.get(DayStat, day))
+    return stat_json(key_get(db, DayStat, day=day))
 
 
 def series(db: Session, days: int = 14, end: date | None = None) -> dict:
     days = max(1, min(int(days), MAX_WINDOW))
-    end = end or date.today()
+    end = end or clock.today()
     rows = db.scalars(select(DayStat).where(DayStat.day > end - timedelta(days=days), DayStat.day <= end)
                       .order_by(DayStat.day)).all()
     sl = [r.sleep_h for r in rows if r.sleep_h is not None]

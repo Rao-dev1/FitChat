@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from ..models import Exercise, WorkoutSession, WorkoutSet
 from .nutrition import get_profile
+from .. import clock
 
 MAX_REPS, MAX_WEIGHT_KG, MAX_SETS_PER_CALL = 100, 500.0, 20
 WEIGHT_STEP_KG = 2.5  # smallest common plate jump
@@ -103,7 +104,7 @@ def progression_hint(sets: list[WorkoutSet], goal: str) -> dict | None:
 
 def last_session(db: Session, exercise_id: str, before: date | None = None) -> tuple[date, list[WorkoutSet]] | None:
     """Most recent day this exercise was done before `before` (default: today, so today's sets are excluded)."""
-    before = before or date.today()
+    before = before or clock.today()
     by_day: dict[date, list[WorkoutSet]] = {}
     for d, s in _rows(db, exercise_id):
         if d < before:
@@ -150,7 +151,7 @@ def exercise_progress(db: Session, exercise_id: str, sessions: int = 10) -> dict
                 best["heaviest"] = {"weight_kg": s.weight_kg, "reps": s.reps, "day": d.isoformat()}
         elif best["bodyweight_reps"] is None or s.reps > best["bodyweight_reps"]["reps"]:
             best["bodyweight_reps"] = {"reps": s.reps, "day": d.isoformat()}
-    today_sets = by_day.get(date.today(), [])
+    today_sets = by_day.get(clock.today(), [])
     return {"exercise": {"id": ex.id, "name": ex.name, "equipment": ex.equipment,
                          "primary_muscles": ex.primary_muscles},
             "today": [_set_json(s) for s in today_sets], "last": last_performance(db, exercise_id),
@@ -158,7 +159,7 @@ def exercise_progress(db: Session, exercise_id: str, sessions: int = 10) -> dict
 
 
 def today_log(db: Session, day: date | None = None) -> dict:
-    day = day or date.today()
+    day = day or clock.today()
     session = db.scalar(select(WorkoutSession).where(WorkoutSession.day == day))
     groups: dict[str, dict] = {}
     for s in (sorted(session.sets, key=lambda x: x.id) if session else []):

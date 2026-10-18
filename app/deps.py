@@ -1,6 +1,11 @@
 from functools import lru_cache
 
+from fastapi import Depends
+from sqlalchemy.orm import Session
+
+from . import accounts
 from .config import get_settings
+from .db import get_db
 from .llm.base import LLMClient, LLMError, LLMResponse
 from .llm.gemini import GeminiClient
 
@@ -24,6 +29,15 @@ def _build() -> LLMClient:
         return _Unavailable(str(e))
 
 
-def get_llm() -> LLMClient:
-    """FastAPI dependency. Tests override this with a ScriptedLLM."""
-    return _build()
+@lru_cache(maxsize=64)
+def _build_own(key: str) -> LLMClient:
+    try:
+        return GeminiClient(key, get_settings().gemini_model)
+    except LLMError as e:
+        return _Unavailable(str(e))
+
+
+def get_llm(db: Session = Depends(get_db)) -> LLMClient:
+    """FastAPI dependency. Uses the user's own Gemini key when they saved one, else the server's. Tests override this."""
+    key = accounts.own_key(db)
+    return _build_own(key) if key else _build()

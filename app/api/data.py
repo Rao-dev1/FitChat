@@ -11,6 +11,7 @@ from ..models import Food, Ingredient
 from ..services import injuries as inj_svc
 from ..services import nutrition as nut
 from ..services import workouts as wk
+from .. import clock
 
 router = APIRouter(prefix="/api", tags=["data"])
 MAX_BACKFILL_DAYS = 60
@@ -19,9 +20,9 @@ MAX_BACKFILL_DAYS = 60
 def _past_ok(day: date | None) -> date | None:
     if day is None:
         return None
-    if day > date.today():
+    if day > clock.today():
         raise HTTPException(422, "Can't log food for a future day.")
-    if day < date.today() - timedelta(days=MAX_BACKFILL_DAYS):
+    if day < clock.today() - timedelta(days=MAX_BACKFILL_DAYS):
         raise HTTPException(422, f"Can only log food up to {MAX_BACKFILL_DAYS} days back.")
     return day
 

@@ -10,6 +10,7 @@ from ..models import Exercise, Routine, RoutineExercise, WorkoutSession, Workout
 from . import injuries as inj_svc
 from . import progress
 from . import workouts as wk
+from .. import clock
 
 MAX_EXERCISES = 15
 MAX_ROUTINES = 30
@@ -76,7 +77,7 @@ def routine_json(db: Session, r: Routine) -> dict:
     last = _last_done(db, r)
     return {"id": r.id, "name": r.name, "notes": r.notes, "exercises": [_item_json(i) for i in r.items],
             "total_sets": sum(i.sets for i in r.items), "last_done": last.isoformat() if last else None,
-            "days_since": (date.today() - last).days if last else None}
+            "days_since": (clock.today() - last).days if last else None}
 
 
 def list_routines(db: Session) -> list[dict]:
@@ -89,7 +90,7 @@ def suggest(db: Session) -> dict | None:
     if not rs:
         return None
     info = [(r, _last_done(db, r)) for r in rs]
-    today = date.today()
+    today = clock.today()
     pending = [(r, d) for r, d in info if d != today]
     if not pending:
         return {"routine_id": None, "reason": "You already trained a full routine today."}

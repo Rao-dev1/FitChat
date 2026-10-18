@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from ..models import MealLog, WaterLog, WeightLog, WorkoutSession, WorkoutSet
 from . import nutrition as nut
 from .weekly import PROTEIN_HIT
+from .. import clock
 
 ARC_START, ARC_END = date(2026, 10, 1), date(2026, 12, 31)
 WATER_HIT = 0.9
@@ -68,7 +69,7 @@ def _weight_block(db: Session, start: date, end: date, today: date) -> dict:
 
 
 def status(db: Session, today: date | None = None) -> dict:
-    today = today or date.today()
+    today = today or clock.today()
     p = nut.get_profile(db)
     total = (ARC_END - ARC_START).days + 1
     phase = "before" if today < ARC_START else "finished" if today > ARC_END else "active"

@@ -51,12 +51,19 @@ def del_measures(day: date, db: Session = Depends(get_db)):
     return {"ok": True}
 
 
-@router.post("/photos")
+def _photos_enabled() -> None:
+    """Photos are files on the computer's disk, which a hosted (serverless) server does not have."""
+    from ..config import get_settings
+    if get_settings().auth_mode == "supabase":
+        raise HTTPException(404, "Progress photos are not available on the hosted version yet.")
+
+
+@router.post("/photos", dependencies=[Depends(_photos_enabled)])
 def add_photo(b: PhotoIn, db: Session = Depends(get_db)):
     return _wrap(bd.add_photo, db, b.image, b.pose, b.day)
 
 
-@router.get("/photos/{photo_id}/image")
+@router.get("/photos/{photo_id}/image", dependencies=[Depends(_photos_enabled)])
 def photo_image(photo_id: int, db: Session = Depends(get_db)):
     path = bd.photo_path(db, photo_id)
     if not path:
@@ -64,7 +71,7 @@ def photo_image(photo_id: int, db: Session = Depends(get_db)):
     return FileResponse(path, headers={"Cache-Control": "private, max-age=86400"})
 
 
-@router.delete("/photos/{photo_id}")
+@router.delete("/photos/{photo_id}", dependencies=[Depends(_photos_enabled)])
 def del_photo(photo_id: int, db: Session = Depends(get_db)):
     if not bd.delete_photo(db, photo_id):
         raise HTTPException(404, "Photo not found.")

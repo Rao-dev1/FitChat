@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from ..db import get_db
 from ..services import daylog
 from ..services import digestion as dig
+from .. import clock
 
 router = APIRouter(prefix="/api", tags=["day"])
 
@@ -26,9 +27,9 @@ class BowelIn(BaseModel):
 
 @router.get("/day/{day}")
 def get_day(day: date, db: Session = Depends(get_db)):
-    if day > date.today():
+    if day > clock.today():
         raise HTTPException(422, "That day hasn't happened yet.")
-    if day < date.today() - timedelta(days=daylog.MAX_BACK_DAYS):
+    if day < clock.today() - timedelta(days=daylog.MAX_BACK_DAYS):
         raise HTTPException(422, "That date is too far back.")
     return daylog.day_log(db, day)
 

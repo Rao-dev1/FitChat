@@ -497,3 +497,18 @@ button.hcard { cursor: pointer; }
 .filebtn { align-items: center; justify-content: center; min-height: 48px; padding: 0 18px; border-radius: 12px; cursor: pointer; }
 .dayseg { min-height: 44px; flex: none; }
 .seg { flex: none; }
+
+/* ---- Sign-in screen and Account ---- */
+.authgate { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; padding: 20px; background: var(--chalk); overflow-y: auto; }
+.authcard { width: min(100%, 380px); display: grid; gap: 12px; padding: 22px 18px; background: var(--paper); border: 1px solid var(--line); border-radius: 18px; }
+.authcard h1 { font: 700 30px/1 var(--font-num); letter-spacing: 0.02em; }
+.authcard h2 { font: 600 20px/1.2 var(--font-num); }
+.authcard label { display: grid; gap: 4px; font-weight: 600; font-size: 15px; }
+.authcard input { min-height: 48px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--chalk); font: inherit; font-weight: 400; color: inherit; }
+.authcard .btn { width: 100%; min-height: 50px; font-size: 17px; }
+.authnote { padding: 10px 12px; border-radius: 10px; background: var(--chalk); color: var(--ink-2); font-size: 15px; }
+.autherr { color: #b3261e; font-weight: 500; }
+.authlinks { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.linkbtn { min-height: 44px; padding: 0 4px; background: none; border: 0; color: var(--blue); font: inherit; font-weight: 600; cursor: pointer; }
+.acct { display: grid; gap: 8px; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
+.acct:last-child { border-bottom: 0; }

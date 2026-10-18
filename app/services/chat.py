@@ -11,6 +11,7 @@ from ..models import ChatMessage, Exercise
 from ..tools import registry
 from . import workouts as wk
 from .nutrition import get_profile
+from .. import clock
 
 log = logging.getLogger(__name__)
 
@@ -110,7 +111,7 @@ def _history(db: Session, n: int) -> list[Message]:
 def run_chat(db: Session, llm: LLMClient, user_text: str) -> ChatResult:
     s = get_settings()
     p = get_profile(db)
-    system = SYSTEM_PROMPT.format(today=date.today().isoformat(), goal=p.goal.replace("_", " "),
+    system = SYSTEM_PROMPT.format(today=clock.today().isoformat(), goal=p.goal.replace("_", " "),
                                   cal=int(p.calorie_target), prot=int(p.protein_target_g))
     messages = _history(db, s.history_messages) + [Message(role="user", text=user_text)]
     db.add(ChatMessage(role="user", content=user_text))

@@ -33,7 +33,9 @@
       if (!bodyUI.data) { root.innerHTML = '<p class="hint">Could not load. Check the server and try again.</p>'; return; }
     }
     root.innerHTML = '';
-    root.append(seg([['measures', 'Measurements'], ['photos', 'Photos']], bodyUI.tab, (k) => { bodyUI.tab = k; rerender(); }));
+    const photosOn = !(window.FCAuth && window.FCAuth.config.photos === false);
+    if (!photosOn) bodyUI.tab = 'measures';
+    if (photosOn) root.append(seg([['measures', 'Measurements'], ['photos', 'Photos']], bodyUI.tab, (k) => { bodyUI.tab = k; rerender(); }));
     (bodyUI.tab === 'photos' ? paintPhotos : paintMeasures)(root, bodyUI.data);
   }
 

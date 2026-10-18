@@ -19,6 +19,15 @@ class Settings(BaseSettings):
         "https://raw.githubusercontent.com/yuhonas/free-exercise-db/main/exercises/"
     )
     photos_dir: str = str(BASE_DIR / "photos")
+    # --- hosting / accounts ---
+    app_tz: str = ""  # e.g. Asia/Kolkata. Empty = use the computer's own clock (local use, tests)
+    auth_mode: str = "none"  # none = single local user (laptop) | supabase = real accounts (hosted)
+    supabase_url: str = ""  # https://<project>.supabase.co
+    supabase_anon_key: str = ""  # the public "anon" key; safe to send to browsers
+    admin_emails: str = ""  # comma separated; these accounts see the pause switch
+    daily_chat_limit: int = 40  # coach messages per user per day on the shared Gemini key
+    app_secret: str = ""  # long random text; encrypts users' own Gemini keys at rest
+    auto_migrate: bool = True  # create/upgrade tables on start; set false on Vercel and run python -m app.initdb once
     max_tool_rounds: int = 6
     history_messages: int = 12
 

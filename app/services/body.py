@@ -8,8 +8,11 @@ from pathlib import Path
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from ..tenancy import key_get
+
 from ..config import get_settings
 from ..models import BodyMeasure, ProgressPhoto
+from .. import clock
 
 FIELDS = {"waist_cm": "Waist", "chest_cm": "Chest", "hips_cm": "Hips", "arm_cm": "Arm", "thigh_cm": "Thigh"}
 MIN_CM, MAX_CM = 10.0, 250.0
@@ -24,8 +27,8 @@ class BodyError(ValueError):
 
 
 def _past(day: date | None) -> date:
-    day = day or date.today()
-    if day > date.today():
+    day = day or clock.today()
+    if day > clock.today():
         raise BodyError("Can't log for a future date.")
     return day
 
@@ -38,7 +41,7 @@ def log_measures(db: Session, day: date | None = None, **values) -> dict:
     for k, v in given.items():
         if not (MIN_CM <= float(v) <= MAX_CM):
             raise BodyError(f"{FIELDS[k]} must be between {MIN_CM:g} and {MAX_CM:g} cm.")
-    row = db.get(BodyMeasure, day) or BodyMeasure(day=day)
+    row = key_get(db, BodyMeasure, day=day) or BodyMeasure(day=day)
     for k, v in given.items():
         setattr(row, k, round(float(v), 1))
     db.add(row)
@@ -48,7 +51,7 @@ def log_measures(db: Session, day: date | None = None, **values) -> dict:
 
 
 def delete_measures(db: Session, day: date) -> bool:
-    row = db.get(BodyMeasure, day)
+    row = key_get(db, BodyMeasure, day=day)
     if not row:
         return False
     db.delete(row)
@@ -127,7 +130,7 @@ def overview(db: Session) -> dict:
                           "latest_day": last[0].isoformat(), "change_cm": round(last[1] - first[1], 1) if len(pts) > 1 else None}
     last_day = rows[-1].day if rows else None
     return {"measures": [_measure_json(r) for r in rows], "changes": changes, "photos": [photo_json(p) for p in photos],
-            "days_since_measure": (date.today() - last_day).days if last_day else None,
+            "days_since_measure": (clock.today() - last_day).days if last_day else None,
             "summary": _summary(changes)}
 
 

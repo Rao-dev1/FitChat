@@ -11,13 +11,14 @@ from . import daystats as ds
 from . import digestion as dig
 from . import nutrition as nut
 from . import routines as rt
+from .. import clock
 
 MAX_NUDGES = 4
 KINDS = ["food", "water", "protein", "gym", "weight", "measure", "sleep", "steps", "gut"]
 
 
 def compute(db: Session, now: datetime | None = None) -> list[dict]:
-    now = now or datetime.now()
+    now = now or clock.now()
     day, h = now.date(), now.hour + now.minute / 60
     out: list[dict] = []
     rem = nut.remaining(db, day)

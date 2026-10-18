@@ -4,9 +4,12 @@ from datetime import date, timedelta
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from ..tenancy import key_get
+
 from ..models import MealLog, WeightLog, WorkoutSession, WorkoutSet
 from . import daystats as ds
 from . import nutrition as nut
+from .. import clock
 
 MIN_WEIGHT_KG, MAX_WEIGHT_KG = 25.0, 400.0
 PROTEIN_HIT = 0.9  # a day "hits" protein at 90% of target or more
@@ -14,13 +17,13 @@ MAX_WINDOW_DAYS = 90
 
 
 def log_weight(db: Session, weight_kg: float, day: date | None = None) -> dict:
-    day = day or date.today()
+    day = day or clock.today()
     if not (MIN_WEIGHT_KG <= weight_kg <= MAX_WEIGHT_KG):
         raise ValueError(f"Weight must be between {MIN_WEIGHT_KG:g} and {MAX_WEIGHT_KG:g} kg.")
-    if day > date.today():
+    if day > clock.today():
         raise ValueError("Can't log a weight for a future date.")
     weight_kg = round(weight_kg, 1)
-    row = db.get(WeightLog, day)
+    row = key_get(db, WeightLog, day=day)
     if row:
         row.weight_kg = weight_kg
     else:
@@ -32,7 +35,7 @@ def log_weight(db: Session, weight_kg: float, day: date | None = None) -> dict:
 
 
 def delete_weight(db: Session, day: date) -> bool:
-    row = db.get(WeightLog, day)
+    row = key_get(db, WeightLog, day=day)
     if not row:
         return False
     db.delete(row)
@@ -50,7 +53,7 @@ def _sync_profile(db: Session) -> None:
 
 
 def weight_series(db: Session, days: int = 60, end: date | None = None) -> list[dict]:
-    end = end or date.today()
+    end = end or clock.today()
     rows = db.scalars(select(WeightLog).where(WeightLog.day > end - timedelta(days=days), WeightLog.day <= end)
                       .order_by(WeightLog.day)).all()
     return [{"day": r.day.isoformat(), "weight_kg": r.weight_kg} for r in rows]
@@ -70,7 +73,7 @@ def _weight_block(series: list[dict]) -> dict:
 
 def weekly_summary(db: Session, end: date | None = None, days: int = 7) -> dict:
     days = max(1, min(int(days), MAX_WINDOW_DAYS))
-    end = end or date.today()
+    end = end or clock.today()
     start = end - timedelta(days=days - 1)
     profile = nut.get_profile(db)
 

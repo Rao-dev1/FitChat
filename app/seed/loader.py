@@ -12,14 +12,16 @@ from .ingredients import INGREDIENTS
 EXERCISE_FILE = Path(__file__).resolve().parents[2] / "data" / "exercises.json"
 
 
+SEED_VERSION = 1  # bump when the starter foods/ingredients change; each user's copy is refreshed on next sign-in
+
+
 def seed_all(db: Session) -> None:
-    if not db.scalar(select(func.count()).select_from(Profile)):
-        db.add(Profile())
-    if not db.scalar(select(func.count()).select_from(Food)):
-        for name, aliases, serving, kcal, p, c, f in FOODS:
-            db.add(Food(name=name, aliases=aliases, serving=serving, calories=kcal,
-                        protein_g=p, carbs_g=c, fat_g=f, source="seed_approx",
-                        fibre_g=FOOD_FIBRE_PER_SERVING.get(name, 0)))
+    """Shared reference data (exercises) plus this session's user starter data."""
+    seed_exercises(db)
+    seed_user(db)
+
+
+def seed_exercises(db: Session) -> None:
     if not db.scalar(select(func.count()).select_from(Exercise)) and EXERCISE_FILE.exists():
         for e in json.loads(EXERCISE_FILE.read_text(encoding="utf-8")):
             db.add(Exercise(
@@ -29,6 +31,20 @@ def seed_all(db: Session) -> None:
                 secondary_muscles=e.get("secondaryMuscles", []),
                 instructions=e.get("instructions", []), images=e.get("images", []),
             ))
+    db.commit()
+
+
+def seed_user(db: Session) -> None:
+    """Give the session's user their own copy of the starter foods and ingredients (and a profile)."""
+    profile = db.scalar(select(Profile))
+    if profile is None:
+        profile = Profile()
+        db.add(profile)
+    if not db.scalar(select(func.count()).select_from(Food)):
+        for name, aliases, serving, kcal, p, c, f in FOODS:
+            db.add(Food(name=name, aliases=aliases, serving=serving, calories=kcal,
+                        protein_g=p, carbs_g=c, fat_g=f, source="seed_approx",
+                        fibre_g=FOOD_FIBRE_PER_SERVING.get(name, 0)))
     db.commit()
     # Keep the serving text (which carries the weight used for gram conversion) in sync for starter foods.
     # Only touches foods still marked as the untouched starter data; nutrition values are never changed.
@@ -42,6 +58,8 @@ def seed_all(db: Session) -> None:
     db.commit()
     _sync_starter_names(db)
     _seed_ingredients(db)
+    profile.seed_version = SEED_VERSION
+    db.commit()
 
 
 def _sync_starter_names(db: Session) -> None:

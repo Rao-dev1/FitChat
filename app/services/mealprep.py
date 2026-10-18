@@ -12,6 +12,7 @@ from ..seed.shopping import AISLE_WORDS, DISH_SHOPPING
 from . import nutrition as nut
 from . import plan as pl
 from . import recipes as rc
+from .. import clock
 
 MAX_DAYS = 7
 AISLE_ORDER = ["Vegetables", "Fruit", "Grains and flour", "Pulses and soy", "Dairy and eggs", "Meat and fish",
@@ -81,7 +82,7 @@ def grocery_text(groups: list[dict]) -> str:
 
 
 def generate(db: Session, start: date | None = None, days: int = MAX_DAYS, reshuffle: bool = False) -> dict:
-    start = start or date.today()
+    start = start or clock.today()
     days = max(1, min(int(days), MAX_DAYS))
     p = nut.get_profile(db)
     foods = list(db.scalars(select(Food).order_by(Food.name)))

@@ -4,11 +4,14 @@ from datetime import date, timedelta
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from ..tenancy import key_get
+
 from ..models import BowelLog, DailyState, MealLog, WaterLog, WeightLog, WorkoutSession
 from . import daystats as ds
 from . import digestion as dig
 from . import nutrition as nut
 from . import progress
+from .. import clock
 
 MEAL_ORDER = ["breakfast", "lunch", "snack", "dinner"]
 MAX_BACK_DAYS = 3650
@@ -26,10 +29,10 @@ def day_log(db: Session, day: date) -> dict:
         g["protein_g"] = round(g["protein_g"] + it["protein_g"], 1)
     order = {m: i for i, m in enumerate(MEAL_ORDER)}
     meals = sorted(groups.values(), key=lambda g: order.get(g["meal_type"], 99))
-    st = db.get(DailyState, day)
-    w = db.get(WeightLog, day)
+    st = key_get(db, DailyState, day=day)
+    w = key_get(db, WeightLog, day=day)
     water = dig.water_total(db, day)
-    today = date.today()
+    today = clock.today()
     return {
         "day": day.isoformat(), "is_today": day == today,
         "prev_day": (day - timedelta(days=1)).isoformat(),

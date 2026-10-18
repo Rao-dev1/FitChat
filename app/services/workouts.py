@@ -5,12 +5,15 @@ from datetime import date, datetime, timedelta
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from ..tenancy import key_get
+
 from ..config import get_settings
 from ..models import (DailyState, EquipmentStatus, Exercise, ExerciseSuggestion, WorkoutSession,
                       WorkoutSet)
 from . import injuries as inj_svc
 from . import progress
 from .nutrition import get_profile
+from .. import clock
 
 EQUIPMENT_TYPES = {"barbell", "dumbbell", "machine", "cable", "body only", "kettlebells", "bands",
                    "medicine ball", "exercise ball", "foam roll", "e-z curl bar", "other"}
@@ -72,8 +75,8 @@ def search_exercises(db: Session, q: str = "", muscle: str | None = None,
 # ---------- state ----------
 def set_daily_state(db: Session, energy: int | None = None, soreness: int | None = None,
                     note: str | None = None, day: date | None = None) -> DailyState:
-    day = day or date.today()
-    st = db.get(DailyState, day) or DailyState(day=day)
+    day = day or clock.today()
+    st = key_get(db, DailyState, day=day) or DailyState(day=day)
     for field, v in (("energy", energy), ("soreness", soreness)):
         if v is not None:
             if not 1 <= int(v) <= 5:
@@ -81,13 +84,13 @@ def set_daily_state(db: Session, energy: int | None = None, soreness: int | None
             setattr(st, field, int(v))
     if note is not None:
         st.note = note
-    db.merge(st)
+    db.add(st)
     db.commit()
     return st
 
 
 def readiness(db: Session, day: date | None = None) -> dict:
-    st = db.get(DailyState, day or date.today())
+    st = key_get(db, DailyState, day=day or clock.today())
     energy, soreness = (st.energy, st.soreness) if st else (3, 1)
     if energy <= 2 or soreness >= 4:
         level, advice = "low", "Keep it lighter: fewer sets, stop well short of failure, easier variations, or mobility work."
@@ -105,7 +108,8 @@ def set_equipment_unavailable(db: Session, items: list[str]) -> list[str]:
         key = raw.strip().lower()
         key = EQUIPMENT_ALIASES.get(key, key)
         if key:
-            db.merge(EquipmentStatus(equipment=key))
+            if key_get(db, EquipmentStatus, equipment=key) is None:
+                db.add(EquipmentStatus(equipment=key))
             stored.append(key)
     db.commit()
     return stored
@@ -133,7 +137,7 @@ def _log_sets(db: Session, ex: Exercise, sets: list[dict], day: date | None, not
     if len(sets) > progress.MAX_SETS_PER_CALL:
         raise ValueError(f"at most {progress.MAX_SETS_PER_CALL} sets at a time")
     checked = [progress.check_set(s.get("reps"), s.get("weight_kg", 0)) for s in sets]  # validate everything first
-    day = day or date.today()
+    day = day or clock.today()
     prior = progress.best_before(db, ex.id)
     session = db.scalar(select(WorkoutSession).where(WorkoutSession.day == day))
     if not session:
@@ -165,7 +169,7 @@ def log_sets(db: Session, exercise_id: str, sets: list[dict], day: date | None =
 
 
 def recent_training(db: Session, days: int = 7) -> dict:
-    since = date.today() - timedelta(days=days)
+    since = clock.today() - timedelta(days=days)
     sessions = db.scalars(select(WorkoutSession).where(WorkoutSession.day >= since)
                           .order_by(WorkoutSession.day.desc())).all()
     sets_per_muscle: dict[str, int] = {}
@@ -180,7 +184,7 @@ def recent_training(db: Session, days: int = 7) -> dict:
                 last_muscle_day[m] = max(last_muscle_day.get(m, s.day), s.day)
         history.append({"day": s.day.isoformat(), "exercises": per_ex})
     return {"window_days": days, "sessions": history, "sets_per_muscle": sets_per_muscle,
-            "days_since_muscle_trained": {m: (date.today() - d).days for m, d in last_muscle_day.items()}}
+            "days_since_muscle_trained": {m: (clock.today() - d).days for m, d in last_muscle_day.items()}}
 
 
 # ---------- recommendations ----------
@@ -230,8 +234,8 @@ def resolve_muscles(spec: str) -> list[str]:
 
 def recently_used_ids(db: Session, days: int = RECENT_DAYS) -> set[str]:
     ids = set(db.scalars(select(ExerciseSuggestion.exercise_id)
-                         .where(ExerciseSuggestion.suggested_at >= datetime.now() - timedelta(days=days))))
-    since = date.today() - timedelta(days=days)
+                         .where(ExerciseSuggestion.suggested_at >= clock.now() - timedelta(days=days))))
+    since = clock.today() - timedelta(days=days)
     ids |= set(db.scalars(select(WorkoutSet.exercise_id).join(WorkoutSession).where(WorkoutSession.day >= since)))
     return ids
 

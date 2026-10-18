@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from ..db import get_db
 from ..services import daystats as ds
+from .. import clock
 
 router = APIRouter(prefix="/api/daystats", tags=["daystats"])
 
@@ -18,7 +19,7 @@ class StatIn(BaseModel):
 
 @router.get("")
 def get_series(days: int = 14, db: Session = Depends(get_db)):
-    return {**ds.series(db, days), "today": ds.get(db, date.today())}
+    return {**ds.series(db, days), "today": ds.get(db, clock.today())}
 
 
 @router.post("")

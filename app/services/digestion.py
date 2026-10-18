@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from ..models import BowelLog, Food, WaterLog
 from . import nutrition as nut
+from .. import clock
 
 MIN_ML, MAX_ML = 50.0, 2000.0
 MAX_WATER_DAY_ML = 10000.0
@@ -17,8 +18,8 @@ BRISTOL = {
 
 
 def _check_day(day: date | None) -> date:
-    day = day or date.today()
-    if day > date.today():
+    day = day or clock.today()
+    if day > clock.today():
         raise ValueError("Can't log for a future date.")
     return day
 
@@ -91,22 +92,22 @@ def fibre_foods(db: Session, limit: int = 5) -> list[dict]:
 
 
 def status(db: Session, day: date | None = None) -> dict:
-    day = day or date.today()
+    day = day or clock.today()
     p = nut.get_profile(db)
     water_target, fibre_target = p.water_target_ml or 3000, p.fibre_target_g or 30
     water = water_total(db, day)
     fibre = nut.daily_totals(db, day)["fibre_g"]
     bowel = bowel_entries(db, day)
     last = db.scalar(select(BowelLog).order_by(BowelLog.logged_at.desc()))
-    since = (date.today() - last.day).days if last else None
-    recent = db.scalars(select(BowelLog).where(BowelLog.day > date.today() - timedelta(days=7))
+    since = (clock.today() - last.day).days if last else None
+    recent = db.scalars(select(BowelLog).where(BowelLog.day > clock.today() - timedelta(days=7))
                         .order_by(BowelLog.logged_at.desc())).all()
     out = {"day": day.isoformat(), "water_ml": water, "water_target_ml": water_target,
            "water_remaining_ml": max(0.0, water_target - water), "fibre_g": fibre, "fibre_target_g": fibre_target,
            "fibre_remaining_g": round(max(0.0, fibre_target - fibre), 1), "bowel_today": bowel,
            "water_entries": water_entries(db, day), "days_since_bowel": since,
            "last_bowel": ({"day": last.day.isoformat(), "bristol": last.bristol} if last else None)}
-    out["alert"], out["hints"] = _hints(recent, since, water, water_target, fibre, fibre_target, day == date.today(),
+    out["alert"], out["hints"] = _hints(recent, since, water, water_target, fibre, fibre_target, day == clock.today(),
                                         nut.daily_totals(db, day)["protein_g"], p.protein_target_g)
     out["fibre_foods"] = fibre_foods(db) if fibre < fibre_target else []
     out["summary"] = (f"Water {water:g} of {water_target:g} ml. Fibre {fibre:g} of {fibre_target:g} g. "

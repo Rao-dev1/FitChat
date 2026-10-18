@@ -18,28 +18,36 @@
 
   /* ---------- API ---------- */
   async function api(path, { method = 'GET', body, timeout = 20000 } = {}) {
-    const ctl = new AbortController();
-    const timer = setTimeout(() => ctl.abort(), timeout);
-    try {
-      const res = await fetch(path, {
-        method,
-        headers: body ? { 'Content-Type': 'application/json' } : undefined,
-        body: body ? JSON.stringify(body) : undefined,
-        signal: ctl.signal,
-      });
-      if (!res.ok) {
-        let msg = res.statusText;
-        try {
-          const j = await res.json();
-          msg = typeof j.detail === 'string' ? j.detail
-            : Array.isArray(j.detail) ? j.detail.map((d) => `${(d.loc || []).slice(1).join(' ')}: ${d.msg}`).join('; ')
-            : JSON.stringify(j.detail);
-        } catch (_) { /* keep statusText */ }
-        throw new Error(msg);
+    const auth = window.FCAuth;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const extra = auth ? await auth.headers() : {};  // waits here until signed in (hosted); nothing to wait for on a laptop
+      const ctl = new AbortController();
+      const timer = setTimeout(() => ctl.abort(), timeout);
+      try {
+        const res = await fetch(path, {
+          method,
+          headers: { ...(body ? { 'Content-Type': 'application/json' } : {}), ...extra },
+          body: body ? JSON.stringify(body) : undefined,
+          signal: ctl.signal,
+        });
+        if (res.status === 401 && auth && attempt === 0) { if (await auth.expired()) continue; }
+        if (!res.ok) {
+          let msg = res.statusText;
+          try {
+            const j = await res.json();
+            msg = typeof j.detail === 'string' ? j.detail
+              : Array.isArray(j.detail) ? j.detail.map((d) => `${(d.loc || []).slice(1).join(' ')}: ${d.msg}`).join('; ')
+              : JSON.stringify(j.detail);
+          } catch (_) { /* keep statusText */ }
+          if (res.status === 503 && /paused/i.test(msg) && auth) auth.showPaused();
+          const err = new Error(msg);
+          err.status = res.status;
+          throw err;
+        }
+        return res.status === 204 ? null : res.json();
+      } finally {
+        clearTimeout(timer);
       }
-      return res.status === 204 ? null : res.json();
-    } finally {
-      clearTimeout(timer);
     }
   }
 
@@ -188,7 +196,7 @@
       refreshStatus();
     } catch (err) {
       typing.remove();
-      addMessage('assistant', "Can't reach the server. Check that it's running and that your phone is on the same Wi-Fi as the laptop, then send it again.", { error: true });
+      addMessage('assistant', err.status ? err.message : "Can't reach the server. Check that it's running and that your phone is on the same Wi-Fi as the laptop, then send it again.", { error: true });
       input.value = text;
       autoGrow();
     } finally {
@@ -2325,7 +2333,9 @@
       const hist = await api('/api/chat/history?limit=50');
       hist.forEach((m) => addMessage(m.role, m.content));
     } catch (_) {
-      addMessage('assistant', "Can't reach the server. Check that it's running and that your phone is on the same Wi-Fi as the laptop, then reload this page.", { error: true });
+      const hosted = window.FCAuth && window.FCAuth.config.auth === 'supabase';
+      addMessage('assistant', hosted ? "Can't reach FitChat. Check your connection, then reload this page."
+        : "Can't reach the server. Check that it's running and that your phone is on the same Wi-Fi as the laptop, then reload this page.", { error: true });
     }
     syncEmpty();
     scrollDown();
