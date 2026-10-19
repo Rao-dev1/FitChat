@@ -22,7 +22,11 @@ async def lifespan(app: FastAPI):
     log.info("Database: %s", engine.url.render_as_string(hide_password=True))
     log.info("Model: %s | API key loaded: %s", s.gemini_model, bool(s.gemini_api_key))
     log.info("Sign-in mode: %s | time zone: %s", s.auth_mode, s.app_tz or "computer clock")
-    accounts.ensure_initialised()  # tables, upgrades, shared exercise list (skipped when AUTO_MIGRATE=false)
+    try:
+        accounts.ensure_initialised()  # tables, upgrades, shared exercise list (skipped when AUTO_MIGRATE=false)
+    except Exception:
+        # Keep the site up so the sign-in screen still works; the full error is in the logs.
+        log.exception("DATABASE SETUP FAILED - see the error below")
     yield
 
 
