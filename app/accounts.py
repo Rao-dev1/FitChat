@@ -63,20 +63,28 @@ def lock_down_postgres(engine) -> None:
             END $$;""")
 
 
+_failed_at = 0.0
+
+
 def ensure_initialised() -> None:
-    global _initialised
+    global _initialised, _failed_at
     if _initialised or not get_settings().auto_migrate:
         return
     with _init_lock:
         if _initialised:
             return
+        if _failed_at and time.monotonic() - _failed_at < 120:
+            # Do not hammer the database with a wrong password: Supabase blocks repeated failures.
+            raise RuntimeError("Database setup failed a moment ago; waiting before trying again (see the logs).")
         try:
             rebuilt = init_database()
             if rebuilt:
                 log.info("Database upgraded for accounts; your existing data now belongs to the local user: %s",
                          ", ".join(rebuilt))
             _initialised = True
-        except Exception:  # e.g. two cold starts racing to create tables; the next request retries
+            _failed_at = 0.0
+        except Exception:  # e.g. two cold starts racing to create tables; retried after a short pause
+            _failed_at = time.monotonic()
             log.exception("database setup failed")
             raise
 
