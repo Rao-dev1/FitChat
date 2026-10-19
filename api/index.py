@@ -27,7 +27,16 @@ class RestorePath:
                 path = "/" + real.lstrip("/")
                 scope = dict(scope, path=path, raw_path=path.encode(),
                              query_string=urlencode(rest).encode())
-        await self.inner(scope, receive, send)
+        seen = scope.get("path")
+
+        async def watch(message):
+            if message["type"] == "http.response.start" and message["status"] == 404:
+                keep = {k.decode(): v.decode() for k, v in scope.get("headers", [])
+                        if k.decode().startswith(("x-vercel", "x-matched", "x-invoke", "x-forwarded-host"))}
+                print(f"404 path={seen!r} rest_query={scope.get('query_string')!r} headers={keep}", flush=True)
+            await send(message)
+
+        await self.inner(scope, receive, watch)
 
 
 app = RestorePath(_fastapi)
