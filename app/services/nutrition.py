@@ -4,13 +4,14 @@ from datetime import date
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from ..models import Food, Ingredient, MealLog, Profile, WorkoutSession, WorkoutSet
+from ..models import DayStat, Food, Ingredient, MealLog, Profile, WorkoutSession, WorkoutSet
+from . import targets as tg
 from . import ingredients as ing_svc
 from .textmatch import match_named
 from .. import clock
 
-# Heuristic, tweak freely: extra calories allowed on a day where a workout was logged.
-TRAINING_DAY_CALORIE_BONUS = 150
+# Extra calories on a day with a workout / steps: see targets.training_bonus and targets.steps_bonus.
+TRAINING_DAY_CALORIE_BONUS = tg.TRAIN_FLOOR  # smallest bonus a counted workout earns
 MIN_SETS_FOR_BONUS = 6
 
 
@@ -206,20 +207,29 @@ def daily_totals(db: Session, day: date | None = None) -> dict:
     }
 
 
+def sets_on(db: Session, day: date) -> int:
+    return db.scalar(select(func.count(WorkoutSet.id)).join(WorkoutSession).where(WorkoutSession.day == day)) or 0
+
+
 def trained_today(db: Session, day: date | None = None) -> bool:
-    day = day or clock.today()
-    n = db.scalar(select(func.count(WorkoutSet.id)).join(WorkoutSession).where(WorkoutSession.day == day))
-    return (n or 0) >= MIN_SETS_FOR_BONUS
+    return sets_on(db, day or clock.today()) >= MIN_SETS_FOR_BONUS
+
+
+def steps_on(db: Session, day: date) -> int | None:
+    return db.scalar(select(DayStat.steps).where(DayStat.day == day))
 
 
 def remaining(db: Session, day: date | None = None) -> dict:
     day = day or clock.today()
     p, t = get_profile(db), daily_totals(db, day)
-    bonus = TRAINING_DAY_CALORIE_BONUS if trained_today(db, day) else 0
-    cal_target = p.calorie_target + bonus
+    bonus = tg.training_bonus(sets_on(db, day), p.weight_kg, MIN_SETS_FOR_BONUS)
+    steps = steps_on(db, day)
+    steps_extra = tg.steps_bonus(steps, p.weight_kg)
+    cal_target = p.calorie_target + bonus + steps_extra
     return {
         "day": day.isoformat(), "goal": p.goal,
-        "calorie_target": cal_target, "training_day_bonus": bonus,
+        "calorie_target": cal_target, "training_day_bonus": bonus, "steps_bonus": steps_extra, "steps": steps,
+        "base_calorie_target": p.calorie_target,
         "calories_eaten": t["calories"], "calories_remaining": round(cal_target - t["calories"], 1),
         "protein_target_g": p.protein_target_g, "protein_eaten_g": t["protein_g"],
         "protein_remaining_g": round(p.protein_target_g - t["protein_g"], 1),

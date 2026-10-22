@@ -6,6 +6,106 @@
   const { el, esc, api, toast, guarded, openSheet } = FC;
   const cfg = () => (window.FCAuth && window.FCAuth.config) || { auth: 'none' };
 
+  const GOALS = [['fat_loss', 'Lose fat'], ['maintain', 'Maintain'], ['muscle_gain', 'Build muscle']];
+
+  function field(label, input) {
+    const l = el('label', 'flabel', `<span>${esc(label)}</span>`);
+    l.append(input);
+    return l;
+  }
+  function numInput(value, ph, min, max, step) {
+    const i = el('input', 'field'); i.type = 'number'; i.inputMode = 'decimal'; i.placeholder = ph;
+    i.min = min; i.max = max; i.step = step || 'any'; i.value = value == null ? '' : value;
+    return i;
+  }
+  function select(opts, value) {
+    const s = el('select', 'field');
+    opts.forEach(([v, l]) => { const o = el('option', null, esc(l)); o.value = v; if (v === value) o.selected = true; s.append(o); });
+    return s;
+  }
+
+  async function bodySection(root) {
+    const sec = el('section', 'acct');
+    sec.append(el('h3', null, 'Body and targets'));
+    root.append(sec);
+    const p = await guarded(() => api('/api/profile'), 'Could not load your details');
+    if (!p) { sec.append(el('p', 'hint', 'Could not load your details.')); return; }
+
+    sec.append(el('p', 'hint', 'Enter your details and FitChat works out your BMI and a daily calorie and protein target. Workouts and steps you log add extra calories on the day.'));
+    const grid = el('div', 'fgrid');
+    const weight = numInput(p.weight_kg, 'kg', 25, 300, '0.1');
+    const height = numInput(p.height_cm, 'cm', 100, 250, '0.5');
+    const age = numInput(p.age, 'years', 10, 100, '1');
+    const sex = select([['', 'Choose'], ['male', 'Male'], ['female', 'Female'], ['other', 'Other / skip']], p.sex || '');
+    grid.append(field('Weight (kg)', weight), field('Height (cm)', height), field('Age', age), field('Sex', sex));
+    const act = select(p.activity_options.map((o) => [o.value, o.label]), p.activity);
+    const goal = select(GOALS, p.goal);
+    sec.append(grid, field('Everyday movement (before workouts)', act), field('Goal', goal));
+
+    const err = el('p', 'err'); err.hidden = true;
+    const save = el('button', 'btn primary', 'Save and calculate'); save.type = 'button';
+    const result = el('div', 'acctresult');
+    sec.append(save, err, result);
+
+    const targets = el('div', 'acct');
+    const cal = numInput(p.calorie_target, 'kcal', 800, 8000, '10');
+    const pro = numInput(p.protein_target_g, 'g', 20, 400, '5');
+    const auto = el('label', 'toggle', '<span>Keep my targets calculated automatically</span>');
+    const cb = el('input'); cb.type = 'checkbox'; cb.checked = !!p.auto_targets; cb.setAttribute('aria-label', 'Keep my targets calculated automatically');
+    auto.append(cb);
+    const useBtn = el('button', 'btn', 'Use suggested targets'); useBtn.type = 'button';
+    const saveT = el('button', 'btn', 'Save targets'); saveT.type = 'button';
+    const tgrid = el('div', 'fgrid'); tgrid.append(field('Calories a day', cal), field('Protein a day (g)', pro));
+    targets.append(el('h3', null, 'Daily targets'), tgrid, auto, el('p', 'hint', 'With the switch on, your targets update when you log a new weight or change your details. Turn it off to type your own numbers.'), useBtn, saveT);
+    sec.append(targets);
+
+    function draw(prof) {
+      const sg = prof.suggestion || {};
+      result.innerHTML = '';
+      if (sg.bmi != null) {
+        result.append(el('p', null, `<b>BMI ${esc(sg.bmi)}</b>${sg.bmi_category ? ` \u00b7 ${esc(sg.bmi_category)}` : ''}`));
+      }
+      if (sg.ready) {
+        result.append(el('p', null, `You burn about <b>${esc(sg.maintenance)} kcal</b> on an ordinary day. For your goal, aim for <b>${esc(sg.calories)} kcal</b> and <b>${esc(sg.protein_g)} g protein</b>.`));
+      } else if (sg.missing && sg.missing.length) {
+        result.append(el('p', 'hint', `Add ${esc(sg.missing.join(', '))} to get your targets.`));
+      }
+      (sg.notes || []).forEach((n) => result.append(el('p', 'hint', esc(n))));
+      cal.value = prof.calorie_target; pro.value = prof.protein_target_g; cb.checked = !!prof.auto_targets;
+      cal.disabled = pro.disabled = saveT.disabled = cb.checked;
+      useBtn.hidden = !sg.ready || cb.checked;
+    }
+    draw(p);
+
+    const num = (i) => (i.value === '' ? null : Number(i.value));
+    save.addEventListener('click', async () => {
+      err.hidden = true; save.disabled = true;
+      const body = { weight_kg: num(weight), height_cm: num(height), age: num(age), sex: sex.value || null, activity: act.value, goal: goal.value };
+      Object.keys(body).forEach((k) => body[k] == null && delete body[k]);
+      try { const r = await api('/api/profile', { method: 'PUT', body }); draw(r); toast('Saved'); if (FC.refreshSummary) FC.refreshSummary(); }
+      catch (e) { err.textContent = e.message; err.hidden = false; }
+      save.disabled = false;
+    });
+    cb.addEventListener('change', async () => {
+      err.hidden = true;
+      try {
+        let r = await api('/api/profile', { method: 'PUT', body: { auto_targets: cb.checked } });
+        if (cb.checked && r.suggestion && r.suggestion.ready) r = await api('/api/profile/apply-suggested', { method: 'POST' });
+        draw(r); toast(cb.checked ? 'Targets will update automatically' : 'Automatic targets off'); if (FC.refreshSummary) FC.refreshSummary();
+      } catch (e) { cb.checked = !cb.checked; err.textContent = e.message; err.hidden = false; }
+    });
+    useBtn.addEventListener('click', async () => {
+      err.hidden = true;
+      try { draw(await api('/api/profile/apply-suggested', { method: 'POST' })); toast('Targets updated'); if (FC.refreshSummary) FC.refreshSummary(); }
+      catch (e) { err.textContent = e.message; err.hidden = false; }
+    });
+    saveT.addEventListener('click', async () => {
+      err.hidden = true;
+      try { draw(await api('/api/profile', { method: 'PUT', body: { calorie_target: num(cal), protein_target_g: num(pro) } })); toast('Targets saved'); if (FC.refreshSummary) FC.refreshSummary(); }
+      catch (e) { err.textContent = e.message; err.hidden = false; }
+    });
+  }
+
   async function renderAccount(root) {
     root.innerHTML = '<p class="hint">Loading</p>';
     const me = await guarded(() => api('/api/me'), 'Could not load your account');
@@ -65,6 +165,8 @@
       root.append(box);
     }
 
+    await bodySection(root);
+
     const data = el('section', 'acct');
     data.append(el('h3', null, 'Your data'));
     data.append(el('p', 'hint', 'Download everything you have logged as a file you can keep as a backup.'));
@@ -116,5 +218,5 @@
   }
 
   FC.openAccount = () => openSheet('Account', renderAccount);
-  FC.accountSub = () => (cfg().auth === 'supabase' ? 'Sign-in, coach limit, your data' : 'Back up your data');
+  FC.accountSub = () => (cfg().auth === 'supabase' ? 'Weight, height, targets, sign-in, data' : 'Weight, height, targets, backup');
 })();

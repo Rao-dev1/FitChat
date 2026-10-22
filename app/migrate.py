@@ -10,6 +10,11 @@ ADDED_COLUMNS = [
     ("profile", "fibre_target_g", "FLOAT DEFAULT 30"),
     ("profile", "gym_days_goal", "INTEGER DEFAULT 4"),
     ("profile", "seed_version", "INTEGER DEFAULT 0"),
+    ("profile", "height_cm", "FLOAT"),
+    ("profile", "age", "INTEGER"),
+    ("profile", "sex", "VARCHAR(10)"),
+    ("profile", "activity", "VARCHAR(12) DEFAULT 'light'"),
+    ("profile", "auto_targets", "BOOLEAN DEFAULT FALSE"),
 ]
 
 

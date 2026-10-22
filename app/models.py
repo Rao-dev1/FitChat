@@ -35,6 +35,12 @@ class Profile(UserOwned, Base):
     water_target_ml: Mapped[float] = mapped_column(Float, default=3000)
     fibre_target_g: Mapped[float] = mapped_column(Float, default=30)
     gym_days_goal: Mapped[int] = mapped_column(Integer, default=4)
+    # Body details for the target calculator (all optional).
+    height_cm: Mapped[float | None] = mapped_column(Float, nullable=True)
+    age: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    sex: Mapped[str | None] = mapped_column(String(10), nullable=True)  # male | female | other
+    activity: Mapped[str] = mapped_column(String(12), default="light")  # sedentary | light | moderate
+    auto_targets: Mapped[bool] = mapped_column(Boolean, default=False)  # keep calorie/protein targets calculated
 
 
 class Food(UserOwned, Base):

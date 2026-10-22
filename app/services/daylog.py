@@ -40,7 +40,7 @@ def day_log(db: Session, day: date) -> dict:
         "meals": meals,
         "totals": {k: t[k] for k in ("calories", "protein_g", "carbs_g", "fat_g", "fibre_g", "entries")},
         "targets": {"calories": rem["calorie_target"], "protein_g": rem["protein_target_g"],
-                    "fibre_g": rem["fibre_target_g"], "training_day_bonus": rem["training_day_bonus"]},
+                    "fibre_g": rem["fibre_target_g"], "training_day_bonus": rem["training_day_bonus"], "steps_bonus": rem["steps_bonus"]},
         "any_estimated": t["any_estimated"],
         "workout": progress.today_log(db, day), "trained": nut.trained_today(db, day),
         "water": {"ml": water, "target_ml": nut.get_profile(db).water_target_ml or 3000,

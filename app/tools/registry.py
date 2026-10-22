@@ -18,7 +18,9 @@ from ..services import injuries as inj_svc
 from ..services import nutrition as nut
 from ..services import myfoods as mf_svc
 from ..services import plan as plan_svc
+from ..services import profile as profile_svc
 from ..services import progress as prog
+from ..services import targets as tg_svc
 from ..services import recipes as rc_svc
 from ..services import routines as rt_svc
 from ..services import weekly as wkly
@@ -203,14 +205,26 @@ def _update_profile(db, a):
         if a["experience"] not in wk.LEVELS_ALLOWED:
             raise ValueError("experience must be beginner, intermediate or expert")
         p.experience = a["experience"]
-    for f in ("calorie_target", "protein_target_g", "weight_kg"):
+    for f in ("calorie_target", "protein_target_g"):
         if a.get(f) is not None:
             if float(a[f]) <= 0:
                 raise ValueError(f"{f} must be positive")
             setattr(p, f, float(a[f]))
+    body = {f: a[f] for f in ("weight_kg", "height_cm", "age", "sex", "activity") if a.get(f) is not None}
+    if body.get("age") is not None:
+        body["age"] = int(body["age"])
+    for f in ("weight_kg", "height_cm"):
+        if f in body:
+            body[f] = float(body[f])
+    if body:
+        profile_svc.save_body(db, body)
+    if a.get("recalculate"):
+        profile_svc.apply_suggested(db)
     db.commit()
+    p = nut.get_profile(db)
     return {"goal": p.goal, "calorie_target": p.calorie_target, "protein_target_g": p.protein_target_g,
-            "weight_kg": p.weight_kg, "experience": p.experience}
+            "weight_kg": p.weight_kg, "height_cm": p.height_cm, "age": p.age, "sex": p.sex, "activity": p.activity,
+            "experience": p.experience, "suggestion": tg_svc.suggest(**profile_svc._inputs(p))}
 
 
 TOOLS: list[Tool] = [
@@ -361,8 +375,12 @@ TOOLS: list[Tool] = [
                   _obj({"items": {"type": "array", "items": _STR}})),
          lambda db, a: {"cleared": wk.set_equipment_available(db, a.get("items"))}),
     Tool(ToolSpec("update_profile", "Change goal (fat_loss|muscle_gain|maintain), experience, calorie_target, "
-                  "protein_target_g, weight_kg.", _obj({"goal": _STR, "experience": _STR, "calorie_target": _NUM,
-                                                        "protein_target_g": _NUM, "weight_kg": _NUM})),
+                  "protein_target_g, weight_kg, height_cm, age, sex (male|female|other), activity "
+                  "(sedentary|light|moderate: everyday movement before workouts). Set recalculate=true to replace the "
+                  "calorie and protein targets with the calculated suggestion from the body details.",
+                  _obj({"goal": _STR, "experience": _STR, "calorie_target": _NUM, "protein_target_g": _NUM,
+                        "weight_kg": _NUM, "height_cm": _NUM, "age": _NUM, "sex": _STR, "activity": _STR,
+                        "recalculate": {"type": "boolean"}})),
          _update_profile),
 ]
 _BY_NAME = {t.spec.name: t for t in TOOLS}

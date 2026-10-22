@@ -6,7 +6,8 @@ from sqlalchemy.orm import Session
 
 from ..tenancy import key_get
 
-from ..models import MealLog, WeightLog, WorkoutSession, WorkoutSet
+from ..models import DayStat, MealLog, WeightLog, WorkoutSession, WorkoutSet
+from . import targets as tg
 from . import daystats as ds
 from . import nutrition as nut
 from .. import clock
@@ -50,6 +51,8 @@ def _sync_profile(db: Session) -> None:
     last = db.scalar(select(WeightLog).order_by(WeightLog.day.desc()))
     if last:
         nut.get_profile(db).weight_kg = last.weight_kg
+        from . import profile as profile_svc  # local import: profile imports this package's siblings
+        profile_svc.refresh_if_auto(db)
 
 
 def weight_series(db: Session, days: int = 60, end: date | None = None) -> list[dict]:
@@ -89,12 +92,14 @@ def weekly_summary(db: Session, end: date | None = None, days: int = 7) -> dict:
         d["sets"] += 1
         d["volume"] += reps * w
 
+    step_rows = dict(db.execute(select(DayStat.day, DayStat.steps).where(DayStat.day >= start, DayStat.day <= end)).all())
     rows = []
     for i in range(days):
         day = start + timedelta(days=i)
         e, w = eaten.get(day), sets.get(day, {"sets": 0, "volume": 0.0})
         trained = w["sets"] >= nut.MIN_SETS_FOR_BONUS
-        target = profile.calorie_target + (nut.TRAINING_DAY_CALORIE_BONUS if trained else 0)
+        target = (profile.calorie_target + tg.training_bonus(w["sets"], profile.weight_kg, nut.MIN_SETS_FOR_BONUS)
+                  + tg.steps_bonus(step_rows.get(day), profile.weight_kg))
         rows.append({
             "day": day.isoformat(), "weekday": day.strftime("%a"), "logged": e is not None,
             "calories": round(e["calories"]) if e else 0, "protein_g": round(e["protein_g"], 1) if e else 0,

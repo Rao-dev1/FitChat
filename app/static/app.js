@@ -240,8 +240,11 @@
     setBar('#proBar', r.protein_eaten_g, r.protein_target_g);
 
     const note = $('#trainNote');
-    note.hidden = !(r.training_day_bonus > 0);
-    note.textContent = r.training_day_bonus > 0 ? `+${fmtNum(r.training_day_bonus)} kcal for training` : '';
+    const extras = [];
+    if (r.training_day_bonus > 0) extras.push(`+${fmtNum(r.training_day_bonus)} kcal for training`);
+    if (r.steps_bonus > 0) extras.push(`+${fmtNum(r.steps_bonus)} for ${fmtNum(r.steps)} steps`);
+    note.hidden = !extras.length;
+    note.textContent = extras.join(' \u00b7 ');
     $('#macros').classList.remove('stale');
     const gl = $('#gutLine');
     if (gl && s.gut) {
@@ -915,7 +918,7 @@
     sec.append(el('h3', null, 'Today'));
     if (!t.exercises.length) sec.append(el('p', 'hint', 'No sets logged yet. Search an exercise below, or tap Log sets on an exercise card in the chat.'));
     else {
-      sec.append(el('p', 'hint', `${t.total_sets} set${t.total_sets === 1 ? '' : 's'} across ${t.exercises.length} exercise${t.exercises.length === 1 ? '' : 's'}${t.training_day_bonus ? `. Training day: +${t.training_day_bonus} kcal added to today’s target.` : '. Log 6 sets to count today as a training day (+150 kcal).'}`));
+      sec.append(el('p', 'hint', `${t.total_sets} set${t.total_sets === 1 ? '' : 's'} across ${t.exercises.length} exercise${t.exercises.length === 1 ? '' : 's'}${t.training_day_bonus ? `. Training day: +${t.training_day_bonus} kcal added to today’s target.` : '. Log 6 sets to count today as a training day (at least +150 kcal).'}`));
       const list = el('div', 'list');
       t.exercises.forEach((g) => {
         const row = el('div', 'row wex');

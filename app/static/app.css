@@ -512,3 +512,7 @@ button.hcard { cursor: pointer; }
 .linkbtn { min-height: 44px; padding: 0 4px; background: none; border: 0; color: var(--blue); font: inherit; font-weight: 600; cursor: pointer; }
 .acct { display: grid; gap: 8px; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
 .acct:last-child { border-bottom: 0; }
+
+.acctresult { display: grid; gap: 6px; }
+.acctresult:empty { display: none; }
+select.field { appearance: auto; }

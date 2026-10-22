@@ -10,6 +10,7 @@ from ..db import get_db
 from ..models import Food, Ingredient
 from ..services import injuries as inj_svc
 from ..services import nutrition as nut
+from ..services import profile as profile_svc
 from ..services import workouts as wk
 from .. import clock
 
@@ -54,6 +55,11 @@ class ProfileIn(BaseModel):
     water_target_ml: float | None = Field(default=None, ge=500, le=10000)
     fibre_target_g: float | None = Field(default=None, ge=5, le=100)
     gym_days_goal: int | None = Field(default=None, ge=1, le=7)
+    height_cm: float | None = Field(default=None, gt=0)
+    age: int | None = Field(default=None, gt=0)
+    sex: str | None = Field(default=None, pattern="^(male|female|other)$")
+    activity: str | None = Field(default=None, pattern="^(sedentary|light|moderate)$")
+    auto_targets: bool | None = None
 
 
 class InjuryIn(BaseModel):
@@ -79,20 +85,23 @@ def health():
 
 @router.get("/profile")
 def get_profile(db: Session = Depends(get_db)):
-    p = nut.get_profile(db)
-    return {"goal": p.goal, "experience": p.experience, "calorie_target": p.calorie_target,
-            "protein_target_g": p.protein_target_g, "weight_kg": p.weight_kg,
-            "water_target_ml": p.water_target_ml, "fibre_target_g": p.fibre_target_g,
-            "gym_days_goal": p.gym_days_goal}
+    return profile_svc.view(db)
 
 
 @router.put("/profile")
 def put_profile(body: ProfileIn, db: Session = Depends(get_db)):
-    p = nut.get_profile(db)
-    for k, v in body.model_dump(exclude_none=True).items():
-        setattr(p, k, v)
-    db.commit()
-    return get_profile(db)
+    try:
+        return profile_svc.save_body(db, body.model_dump(exclude_none=True))
+    except ValueError as e:
+        raise HTTPException(422, str(e))
+
+
+@router.post("/profile/apply-suggested")
+def apply_suggested(db: Session = Depends(get_db)):
+    try:
+        return profile_svc.apply_suggested(db)
+    except ValueError as e:
+        raise HTTPException(422, str(e))
 
 
 @router.get("/foods")

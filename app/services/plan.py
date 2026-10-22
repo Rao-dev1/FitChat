@@ -182,6 +182,8 @@ def plan_rest_of_day(db: Session, hour: int | None = None, slots: list[str] | No
         notes.append(f"Fibre would end around {projected['fibre_g']:.0f} of {rem['fibre_target_g']:g} g. Add dal, rajma, vegetables or fruit.")
     if rem["training_day_bonus"]:
         notes.append(f"Includes the +{rem['training_day_bonus']} kcal training-day allowance.")
+    if rem["steps_bonus"]:
+        notes.append(f"Includes +{rem['steps_bonus']} kcal for your {rem['steps']:,} steps.")
     unplanned = cal_left - (projected["calories"] - rem["calories_eaten"])
     if unplanned > 250:
         notes.append(f"About {unplanned:.0f} kcal are still unplanned. Add a bigger portion or another snack if you are hungry.")
