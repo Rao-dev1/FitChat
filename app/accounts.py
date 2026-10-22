@@ -31,6 +31,17 @@ PAUSE_TTL_S = 10
 def init_database(engine=None) -> list[str]:
     """Create/upgrade tables and load shared reference data. Safe to run any number of times."""
     engine = engine or default_engine
+    if engine.dialect.name != "postgresql":
+        return _init_database(engine)
+    # Hosted: several server copies can wake up at the same moment. Only one at a time may do the setup;
+    # the others wait here, then find everything already done.
+    with engine.connect() as gate:
+        with gate.begin():
+            gate.exec_driver_sql("SELECT pg_advisory_xact_lock(727000)")
+            return _init_database(engine)
+
+
+def _init_database(engine) -> list[str]:
     ensure_columns(engine)  # old laptop databases first (adds columns the rebuild copies)
     rebuilt = upgrade_to_accounts(engine)
     Base.metadata.create_all(engine)
@@ -48,8 +59,15 @@ def lock_down_postgres(engine) -> None:
     if engine.dialect.name != "postgresql":
         return
     with engine.begin() as conn:
+        # Several server copies can start at once; take turns, and skip tables that are already locked down so a
+        # normal start never asks for the heavy table lock (two copies doing that at once caused a deadlock).
+        conn.exec_driver_sql("SELECT pg_advisory_xact_lock(727001)")
+        done = {row[0] for row in conn.exec_driver_sql(
+            "SELECT c.relname FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace "
+            "WHERE n.nspname = 'public' AND c.relkind = 'r' AND c.relrowsecurity")}
         for t in Base.metadata.sorted_tables:
-            conn.exec_driver_sql(f'ALTER TABLE "{t.name}" ENABLE ROW LEVEL SECURITY')
+            if t.name not in done:
+                conn.exec_driver_sql(f'ALTER TABLE "{t.name}" ENABLE ROW LEVEL SECURITY')
         conn.exec_driver_sql("""
             DO $$
             DECLARE r text;
